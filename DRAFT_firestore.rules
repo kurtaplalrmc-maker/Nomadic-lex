@@ -1,0 +1,125 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net - default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Connection Healthcheck endpoint
+    match /test/{docId} {
+      allow read: if true;
+    }
+
+    // Security Helper Functions
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Schema & Validation Blueprints
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['uid', 'email', 'displayName', 'createdAt', 'updatedAt']) &&
+             data.keys().hasOnly(['uid', 'email', 'displayName', 'academicStage', 'studyStreak', 'createdAt', 'updatedAt']) &&
+             data.uid is string && data.uid.size() > 0 && data.uid.size() <= 128 && data.uid == request.auth.uid &&
+             data.email is string && data.email.size() > 0 && data.email.size() <= 256 &&
+             data.displayName is string && data.displayName.size() > 0 && data.displayName.size() <= 120 &&
+             (!('academicStage' in data) || (data.academicStage is string && data.academicStage.size() <= 60)) &&
+             (!('studyStreak' in data) || (data.studyStreak is number && data.studyStreak >= 0 && data.studyStreak <= 3650)) &&
+             data.createdAt is string && data.createdAt.size() <= 100 &&
+             data.updatedAt is string && data.updatedAt.size() <= 100;
+    }
+
+    function isValidCourseProgress(data) {
+      return data.keys().hasAll(['userId', 'courseId', 'progress', 'completedLessons', 'totalLessons', 'updatedAt']) &&
+             data.keys().hasOnly(['userId', 'courseId', 'progress', 'completedLessons', 'totalLessons', 'nextTopic', 'updatedAt']) &&
+             data.userId is string && data.userId == request.auth.uid &&
+             data.courseId is string && data.courseId.size() > 0 && data.courseId.size() <= 64 &&
+             data.progress is number && data.progress >= 0 && data.progress <= 100 &&
+             data.completedLessons is number && data.completedLessons >= 0 && data.completedLessons <= 100 &&
+             data.totalLessons is number && data.totalLessons > 0 && data.totalLessons <= 100 &&
+             (!('nextTopic' in data) || (data.nextTopic is string && data.nextTopic.size() <= 200)) &&
+             data.updatedAt is string && data.updatedAt.size() <= 100;
+    }
+
+    function isValidActivity(data) {
+      return data.keys().hasAll(['userId', 'title', 'timestamp', 'createdAt']) &&
+             data.keys().hasOnly(['userId', 'title', 'meta', 'timestamp', 'createdAt']) &&
+             data.userId is string && data.userId == request.auth.uid &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+             (!('meta' in data) || (data.meta is string && data.meta.size() <= 200)) &&
+             data.timestamp is string && data.timestamp.size() > 0 && data.timestamp.size() <= 100 &&
+             data.createdAt is string && data.createdAt.size() <= 100;
+    }
+
+    function isValidBrief(data) {
+      return data.keys().hasAll(['userId', 'caseTitle', 'createdAt', 'updatedAt']) &&
+             data.keys().hasOnly(['userId', 'caseTitle', 'facts', 'issue', 'ruling', 'createdAt', 'updatedAt']) &&
+             data.userId is string && data.userId == request.auth.uid &&
+             data.caseTitle is string && data.caseTitle.size() > 0 && data.caseTitle.size() <= 256 &&
+             (!('facts' in data) || (data.facts is string && data.facts.size() <= 5000)) &&
+             (!('issue' in data) || (data.issue is string && data.issue.size() <= 2000)) &&
+             (!('ruling' in data) || (data.ruling is string && data.ruling.size() <= 5000)) &&
+             data.createdAt is string && data.createdAt.size() <= 100 &&
+             data.updatedAt is string && data.updatedAt.size() <= 100;
+    }
+
+    // User Profile Master Gate
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if false; // Blanket listing forbidden
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUserProfile(incoming());
+      allow update: if isOwner(userId) && isValidId(userId) && isValidUserProfile(incoming()) &&
+                       incoming().uid == existing().uid &&
+                       incoming().createdAt == existing().createdAt;
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      // Student Course Progress Subcollection
+      match /courses/{courseId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(courseId) && isValidCourseProgress(incoming()) && incoming().userId == userId;
+        allow update: if isOwner(userId) && isValidId(courseId) && isValidCourseProgress(incoming()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().courseId == existing().courseId;
+        allow delete: if isOwner(userId) && isValidId(courseId);
+      }
+
+      // Student Activities Subcollection
+      match /activities/{activityId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(activityId) && isValidActivity(incoming()) && incoming().userId == userId;
+        allow update: if isOwner(userId) && isValidId(activityId) && isValidActivity(incoming()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt;
+        allow delete: if isOwner(userId) && isValidId(activityId);
+      }
+
+      // Student Case Briefs Subcollection
+      match /briefs/{briefId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(briefId) && isValidBrief(incoming()) && incoming().userId == userId;
+        allow update: if isOwner(userId) && isValidId(briefId) && isValidBrief(incoming()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt;
+        allow delete: if isOwner(userId) && isValidId(briefId);
+      }
+    }
+  }
+}

@@ -1,0 +1,182 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile holding scholar details, academic stage, and study metrics.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Unique identifier corresponding to Firebase Auth UID.",
+          "maxLength": 128
+        },
+        "email": {
+          "type": "string",
+          "description": "User's email address.",
+          "maxLength": 256
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Display or scholar name.",
+          "maxLength": 120
+        },
+        "academicStage": {
+          "type": "string",
+          "description": "Academic stage such as 1L First-Year Scholar or Pre-Law Scholar.",
+          "maxLength": 60
+        },
+        "studyStreak": {
+          "type": "number",
+          "description": "Current consecutive study streak in days."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when profile was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp of latest profile update."
+        }
+      },
+      "required": ["uid", "email", "displayName", "createdAt", "updatedAt"]
+    },
+    "UserCourseProgress": {
+      "title": "UserCourseProgress",
+      "description": "Tracks student completion and progress for a specific course module.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The UID of the student owning this course progress.",
+          "maxLength": 128
+        },
+        "courseId": {
+          "type": "string",
+          "description": "The unique course code identifier (e.g. CIV-101, CRIM-101).",
+          "maxLength": 64
+        },
+        "progress": {
+          "type": "number",
+          "description": "Percentage progress from 0 to 100."
+        },
+        "completedLessons": {
+          "type": "number",
+          "description": "Number of lessons completed in this module."
+        },
+        "totalLessons": {
+          "type": "number",
+          "description": "Total lessons available in this module."
+        },
+        "nextTopic": {
+          "type": "string",
+          "description": "Next recommended topic or article to study.",
+          "maxLength": 200
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when this course progress was last updated."
+        }
+      },
+      "required": ["userId", "courseId", "progress", "completedLessons", "totalLessons", "updatedAt"]
+    },
+    "UserActivity": {
+      "title": "UserActivity",
+      "description": "Log of recent study events, drills, or case completions.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The UID of the student owning this activity record.",
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the completed activity or drill.",
+          "maxLength": 200
+        },
+        "meta": {
+          "type": "string",
+          "description": "Additional context or score for the activity.",
+          "maxLength": 200
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Display timestamp of the activity.",
+          "maxLength": 100
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the activity was logged."
+        }
+      },
+      "required": ["userId", "title", "timestamp", "createdAt"]
+    },
+    "UserBrief": {
+      "title": "UserBrief",
+      "description": "Case brief note created by the student using FIRAC method.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The UID of the student who authored the brief.",
+          "maxLength": 128
+        },
+        "caseTitle": {
+          "type": "string",
+          "description": "Title and citation of the case.",
+          "maxLength": 256
+        },
+        "facts": {
+          "type": "string",
+          "description": "FIRAC Facts statement.",
+          "maxLength": 5000
+        },
+        "issue": {
+          "type": "string",
+          "description": "FIRAC Legal issue under review.",
+          "maxLength": 2000
+        },
+        "ruling": {
+          "type": "string",
+          "description": "FIRAC Supreme Court ratio decidendi.",
+          "maxLength": 5000
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the brief was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the brief was last modified."
+        }
+      },
+      "required": ["userId", "caseTitle", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "Primary user profile document containing student information."
+    },
+    "/users/{userId}/courses/{courseId}": {
+      "schema": {
+        "$ref": "#/entities/UserCourseProgress"
+      },
+      "description": "Student course module completion records."
+    },
+    "/users/{userId}/activities/{activityId}": {
+      "schema": {
+        "$ref": "#/entities/UserActivity"
+      },
+      "description": "Logs of user activities and completions."
+    },
+    "/users/{userId}/briefs/{briefId}": {
+      "schema": {
+        "$ref": "#/entities/UserBrief"
+      },
+      "description": "Student case briefs and FIRAC outlines."
+    }
+  }
+}
